@@ -2,8 +2,7 @@ pipeline {
     agent any
 
     tools {
-        maven 'Maven 3.9.6'
-        jdk 'jdk21'
+        jdk 'jdk21' // Required for SonarQube analysis
     }
 
     environment {
@@ -17,21 +16,42 @@ pipeline {
             }
         }
 
-        stage('Build') {
+        stage('Set Up Python Environment') {
             steps {
-                bat 'mvn clean install'
+                bat '''
+                    python -m venv venv
+                    call venv\\Scripts\\activate
+                    pip install --upgrade pip
+                    pip install -r requirements.txt
+                '''
+            }
+        }
+
+        stage('Run Tests') {
+            steps {
+                bat '''
+                    call venv\\Scripts\\activate
+                    pytest --junitxml=pytest-report.xml --cov=. --cov-report=xml
+                '''
             }
         }
 
         stage('SonarQube Analysis') {
             steps {
                 withSonarQubeEnv('SonarQube') {
-                    bat "${SONARQUBE_SCANNER_HOME}\\bin\\sonar-scanner.bat -Dsonar.projectKey=enhanced-devops-project -Dsonar.sources=. -Dsonar.java.binaries=target"
+                    bat """
+                        ${SONARQUBE_SCANNER_HOME}\\bin\\sonar-scanner.bat ^
+                        -Dsonar.projectKey=enhanced-devops-project ^
+                        -Dsonar.sources=. ^
+                        -Dsonar.language=py ^
+                        -Dsonar.python.version=3.11 ^
+                        -Dsonar.python.coverage.reportPaths=coverage.xml
+                    """
                 }
             }
         }
 
-        stage("Quality Gate") {
+        stage('Quality Gate') {
             steps {
                 timeout(time: 1, unit: 'MINUTES') {
                     waitForQualityGate abortPipeline: true
@@ -41,7 +61,7 @@ pipeline {
 
         stage('Deploy') {
             steps {
-                echo 'Deploy step here (e.g., copy files, restart server, etc.)'
+                echo '🚀 Deployment steps go here (e.g., upload to server, Docker deploy, etc.)'
             }
         }
     }
