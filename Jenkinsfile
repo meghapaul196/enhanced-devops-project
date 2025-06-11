@@ -39,14 +39,17 @@ pipeline {
         stage('SonarQube Analysis') {
             steps {
                 withSonarQubeEnv('SonarQube') {
-                    bat """
-                        ${SONARQUBE_SCANNER_HOME}\\bin\\sonar-scanner.bat ^
-                        -Dsonar.projectKey=enhanced-devops-project ^
-                        -Dsonar.sources=. ^
-                        -Dsonar.language=py ^
-                        -Dsonar.python.version=3.11 ^
-                        -Dsonar.python.coverage.reportPaths=coverage.xml
-                    """
+                    withCredentials([string(credentialsId: 'sonarqube-token', variable: 'SONAR_TOKEN')]) {
+                        bat """
+                            ${SONARQUBE_SCANNER_HOME}\\bin\\sonar-scanner.bat ^
+                            -Dsonar.projectKey=enhanced-devops-project ^
+                            -Dsonar.sources=. ^
+                            -Dsonar.language=py ^
+                            -Dsonar.python.version=3.11 ^
+                            -Dsonar.python.coverage.reportPaths=coverage.xml ^
+                            -Dsonar.login=%SONAR_TOKEN%
+                        """
+                    }
                 }
             }
         }
